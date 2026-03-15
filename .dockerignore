@@ -1,0 +1,15 @@
+.git
+.gitignore
+.gcloudignore
+node_modules
+.next
+out
+coverage
+*.log
+
+# Local env files should not be baked into image
+.env
+.env.*
+
+# Keep the service account file for this hackathon flow
+!digital-scanning-service_account.json

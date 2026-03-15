@@ -1,0 +1,11 @@
+# Keep Cloud Build context small, but include the service account file for hackathon deploy.
+.gcloudignore
+.git
+.gitignore
+node_modules/
+.next/
+out/
+coverage/
+
+# Include this credentials file in build context (intended for hackathon quick deployment only)
+!digital-scanning-service_account.json

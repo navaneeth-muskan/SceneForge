@@ -1,0 +1,31 @@
+project_id            = "your-gcp-project-id" # use project ID string, not numeric project number
+region                = "us-central1"
+service_name          = "videoai-backend"
+artifact_repository_id = "videoai-images"
+service_account_file  = "digital-scanning-service_account.json"
+
+# Image should match what you push during build step.
+container_image = "us-central1-docker.pkg.dev/your-gcp-project-id/videoai-images/videoai:latest"
+
+# Optional; if omitted, defaults to PROJECT_ID-videoai-assets
+bucket_name = "gemini-video-analyser"
+
+# Use your current .env value for hackathon deployment.
+google_genai_api_key = ""
+openai_api_key       = ""
+gemini_api_key       = ""
+render_server_url    = "http://localhost:3000"
+remotion_mapbox_token = ""
+
+# Optional fallback if you do not want to ship the JSON file in the image.
+service_account_json = ""
+
+allow_unauthenticated = true
+min_instances         = 0
+max_instances         = 3
+cpu                   = "1"
+memory                = "1Gi"
+
+extra_env_vars = {
+  NEXT_PUBLIC_DEFAULT_RENDER_BACKEND = "renderServer"
+}
