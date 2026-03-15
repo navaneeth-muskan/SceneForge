@@ -239,5 +239,3 @@ Open http://localhost:3000
 - Agentic story build: Open Agent panel and run a story plan/build.
 - Multimodal analysis: Upload an image/video/PDF and run Understand.
 - GCS integration (if configured): Upload media and confirm returned `gs://` URI.
-#   S c e n e F o r g e  
- 
