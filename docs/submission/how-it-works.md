@@ -78,9 +78,11 @@ Supported analysis and processing flows include:
 - Audio
 - PDFs
 - YouTube URLs
+- Website URLs
 - Reference images for image editing
 
 These inputs are normalized into structures the downstream Gemini and timeline systems can consume.
+For URL-based prompts (YouTube and websites), the system fetches relevant content/context and converts it into visualization-ready structures such as highlights, key points, sequences, and table-like breakdowns.
 
 ## 7. Cloud Media Flow
 

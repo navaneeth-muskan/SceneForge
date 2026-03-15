@@ -20,8 +20,9 @@ Many people, especially kids and visual learners, understand ideas better when t
 - Timeline-ready output includes scene durations and start frames.
 
 3. Multimodal understanding
-- Understand endpoint supports image, video, audio, PDF, and YouTube URL analysis.
+- Understand endpoint supports image, video, audio, PDF, YouTube URL, and website URL analysis.
 - Structured outputs are produced via schemas for downstream timeline usage.
+- URL content can be transformed into visualization-ready outputs such as highlights, key points, and table-like summaries.
 
 4. Image generation and editing
 - Gemini image models generate 16:9 or other-ratio visual assets.

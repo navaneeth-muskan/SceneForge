@@ -24,6 +24,7 @@ At a high level, SceneForge lets a user:
 
 - describe an animation or story in natural language
 - upload supporting media such as images, PDFs, video, or audio
+- include YouTube links or website URLs directly in prompts so the system can extract data/context and visualize it
 - generate Remotion scenes and timeline-ready motion graphics
 - use agentic planning to break a larger brief into multiple scenes
 - preview results live in the browser

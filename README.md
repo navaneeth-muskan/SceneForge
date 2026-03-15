@@ -28,6 +28,7 @@ AI-powered motion graphics and visual-explanation tool that transforms natural l
 - A Next.js app for prompt-driven motion graphics and visual explanation
 - Remotion-based live composition and preview
 - Gemini-powered agent workflows for planning, generation, multimodal analysis, and narration
+- URL-aware prompting (including YouTube and website links) for data extraction and visualization scenes
 - Google Cloud Storage-backed media handling
 - Terraform-based Google Cloud deployment support
 
@@ -111,6 +112,7 @@ Example skills provide complete working references (histogram, chat messages, ty
 - Be specific about colors, timing, and layout ("green sent bubbles on the right, gray received on the left")
 - Include data directly in the prompt for charts and visualizations
 - Describe the animation feel you want ("bouncy spring entrance", "smooth fade", "staggered timing")
+- You can include YouTube or website URLs in the prompt; SceneForge will extract useful context and turn it into visual scenes (tables, highlights, timelines, and key points)
 
 **Images:**
 
