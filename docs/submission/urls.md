@@ -5,6 +5,7 @@
 - GitHub repository: https://github.com/navaneeth-algorithm/VideoAI
 - Live deployed backend: https://videoai-backend-pjymq552ea-uc.a.run.app
 - GDG profile: https://gdg.community.dev/u/mgh8z6/#/about
+- Interactive architecture diagram: [Mermaid diagram](https://mermaid.ai/d/23852a3d-1f82-4abb-a5ae-9994e40ba781)
 
 ## Local URLs
 

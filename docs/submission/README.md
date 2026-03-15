@@ -18,6 +18,10 @@ This folder splits the hackathon submission package into separate documents for 
 12. [Demonstration Video Description](./demo-video.md)
 13. [URLs and Links](./urls.md)
 
+## Interactive Architecture
+
+- Mermaid hosted diagram: [Mermaid diagram](https://mermaid.ai/d/23852a3d-1f82-4abb-a5ae-9994e40ba781)
+
 ## Recommended Review Order
 
 1. Start with Final Story.

@@ -1,5 +1,7 @@
 # Architecture Diagram
 
+Interactive Mermaid link: [Mermaid diagram](https://mermaid.ai/d/23852a3d-1f82-4abb-a5ae-9994e40ba781)
+
 ```mermaid
 flowchart LR
   U[User Browser - Next.js UI] --> FE[Client Components and Agent Panel]
@@ -16,6 +18,7 @@ flowchart LR
   TTS --> GM
   SP --> GM
   SB --> GM
+  GM --> API
 
   API --> GCS[Google Cloud Storage]
   GCS --> API

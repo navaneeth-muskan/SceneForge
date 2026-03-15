@@ -6,6 +6,7 @@ AI-powered motion graphics and visual-explanation tool that transforms natural l
 
 - Submission index: [HACKATHON_SUBMISSION.md](HACKATHON_SUBMISSION.md)
 - Submission docs set: [docs/submission/README.md](docs/submission/README.md)
+- Interactive architecture diagram: [Mermaid diagram](https://mermaid.ai/d/23852a3d-1f82-4abb-a5ae-9994e40ba781)
 - How it works: [docs/submission/how-it-works.md](docs/submission/how-it-works.md)
 - Project summary: [docs/submission/project-summary.md](docs/submission/project-summary.md)
 - Local run instructions: [docs/submission/run-locally.md](docs/submission/run-locally.md)
@@ -41,6 +42,8 @@ If you are reviewing the project for the first time:
 5. Use [docs/submission/deployment.md](docs/submission/deployment.md) for deploy and cloud proof
 
 ## Architecture
+
+[![SceneForge architecture diagram](https://mermaid.ink/img/pako:eJxtkstO6zAQhl9lNOv2PEAXSG0OtSJhZCXp2cQsrHpIjXxBjk0PQrw7cjB3VtZ45pt_bk94DJpwg7c2nI8nFRNcddIDHEaJh5ki7GI4l3cN1_Q__bmb4dBKvIH1-gL2l6PExhryCZrg7oMnn2ZQXsN2Kp9CebISb0rG_eXCbEU7SnzLtRUtdCEnmuE6aIIu-2QcLUiBir9QvRgl9inERxBWeU-xKqyBkTPegIihCr0zu8IcyRPssrH6J7O3aj59ozgfJfJsk3FBKwsHrynOaelJtN-CW85Gia1TEwEjT1ElE_wvgcPQjxKHoX_3FS_ni5MVyVoSD5rsXOmWsxpQrEJ_WL34bOw-GYy_DfrrDFlTamAhTJagsSFrKBNVE1U51vS_k10psCMXlu7Kpo2luOx5MI6s-RhxTdXxeiCvieruu3-jxCvzQCAiPRg6l-goPa7QUXTKaNzgk8R0onIDG4mablW2SeIzrlDlFPpHf8RNiplWmO-1SvTXqCkq9_r5_AK9Wt5F?type=png&bgColor=!white)](https://mermaid.ai/d/23852a3d-1f82-4abb-a5ae-9994e40ba781)
 
 ```
 User Prompt → Validation → Skill Detection → Code Generation → Sanitization → Live Preview
@@ -161,6 +164,7 @@ npx remotion upgrade
 Project docs:
 
 - [docs/submission/README.md](docs/submission/README.md)
+- Interactive architecture diagram: [Mermaid diagram](https://mermaid.ai/d/23852a3d-1f82-4abb-a5ae-9994e40ba781)
 - [docs/submission/how-it-works.md](docs/submission/how-it-works.md)
 - [docs/submission/run-locally.md](docs/submission/run-locally.md)
 - [docs/submission/deployment.md](docs/submission/deployment.md)

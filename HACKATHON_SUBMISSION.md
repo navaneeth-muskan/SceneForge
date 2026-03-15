@@ -27,6 +27,7 @@ This file is now the top-level index for the split submission documents.
 
 - Repository URL: https://github.com/navaneeth-algorithm/VideoAI
 - Live backend URL: https://videoai-backend-pjymq552ea-uc.a.run.app
+- Interactive architecture diagram: [Mermaid diagram](https://mermaid.ai/d/23852a3d-1f82-4abb-a5ae-9994e40ba781)
 - Judge-friendly local setup: [README.md](README.md)
 - Deployment guide: [DEPLOY.md](DEPLOY.md)
 
