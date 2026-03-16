@@ -111,20 +111,18 @@ mapbox-gl @turf/turf @types/mapbox-gl
 
 ### Basic Setup
 ```tsx
-import { useEffect, useRef, useState } from "react";
-import { AbsoluteFill, useDelayRender, useVideoConfig } from "remotion";
+import { useEffect, useRef } from "react";
+import { AbsoluteFill, delayRender, continueRender, useVideoConfig } from "remotion";
 import mapboxgl from "mapbox-gl";
-
-mapboxgl.accessToken = process.env.REMOTION_MAPBOX_TOKEN as string;
 
 export const SceneComp = () => {
   const ref = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<mapboxgl.Map | null>(null);
   const { width, height } = useVideoConfig();
-  const { delayRender, continueRender } = useDelayRender();
-  const [handle] = useState(() => delayRender("Loading map..."));
-  const [map, setMap] = useState<mapboxgl.Map | null>(null);
+  const handleRef = useRef<number | null>(null);
 
   useEffect(() => {
+    handleRef.current = delayRender("Loading map...");
     const _map = new mapboxgl.Map({
       container: ref.current!,
       zoom: 11.5,
@@ -133,7 +131,16 @@ export const SceneComp = () => {
       interactive: false,
       fadeDuration: 0,
     });
-    _map.on("load", () => { continueRender(handle); setMap(_map); });
+    mapRef.current = _map;
+    _map.on("load", () => {
+      if (handleRef.current !== null) continueRender(handleRef.current);
+      handleRef.current = null;
+    });
+
+    return () => {
+      _map.remove();
+      mapRef.current = null;
+    };
   }, []);
 
   return <AbsoluteFill ref={ref} style={{ width, height, position: "absolute" }} />;
@@ -143,16 +150,15 @@ export const SceneComp = () => {
 ### Camera Animation
 ```tsx
 // Drive camera with useCurrentFrame():
-// delayRender + continueRender come from useDelayRender() in the component
+// CRITICAL: Do NOT call delayRender/continueRender in the frame effect.
 useEffect(() => {
+  const map = mapRef.current;
   if (!map) return;
-  const h = delayRender("Camera");
   const progress = interpolate(frame, [0, durationInFrames - 1], [0, 1], { extrapolateRight: "clamp" });
   const cam = map.getFreeCameraOptions();
   cam.lookAtPoint({ lng: -118.2437, lat: 34.0522 });
   map.setFreeCameraOptions(cam);
-  map.once("idle", () => continueRender(h));
-}, [frame, map]);
+}, [frame]);
 ```
 
 ### Render Command
@@ -166,6 +172,8 @@ npx remotion render --gl=angle
 
 - For agent-generated code, prefer **react-simple-maps** (no token required)
 - For user-directed Mapbox work, check that `REMOTION_MAPBOX_TOKEN` is in `.env`
+- In this app, Mapbox token injection is handled by the compiler host. Avoid setting `mapboxgl.accessToken` inside generated scene code.
+- Never call `delayRender()` inside `[frame, map]` camera effects (causes update-depth loops / black frames in Player mode).
 - See `src/examples/code/world-map.ts` for the full react-simple-maps example
 
 

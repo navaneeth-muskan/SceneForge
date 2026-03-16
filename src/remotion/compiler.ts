@@ -19,8 +19,6 @@ import {
   Img,
   Sequence,
   Video,
-  continueRender,
-  delayRender,
   interpolate,
   spring,
   useCurrentFrame,
@@ -50,6 +48,72 @@ function findInvalidInterpolateOutputRange(code: string): string | null {
   }
 
   return null;
+}
+
+function warnIfMapboxAntiFlickerOptionsMissing(code: string): void {
+  const hasMapInit =
+    /new\s+mapboxgl\.Map\s*\(/.test(code) ||
+    /new\s+mapboxGl\.Map\s*\(/.test(code);
+  if (!hasMapInit) return;
+
+  const hasInteractiveFalse = /interactive\s*:\s*false/.test(code);
+  const hasFadeDurationZero = /fadeDuration\s*:\s*0/.test(code);
+
+  if (!hasInteractiveFalse || !hasFadeDurationZero) {
+    console.warn(
+      "[compiler] Mapbox scene detected without recommended anti-flicker options. " +
+        "Add interactive:false and fadeDuration:0 in new mapboxgl.Map(...) for stable Remotion playback.",
+    );
+  }
+}
+
+function warnIfPerFrameDelayRenderDetected(code: string): void {
+  const hasPerFrameDelayRender =
+    /useEffect\s*\(\s*\(\s*\)\s*=>[\s\S]*?delayRender\s*\([\s\S]*?\[\s*frame\s*,\s*map\s*\]/m.test(
+      code,
+    );
+  if (!hasPerFrameDelayRender) return;
+
+  console.warn(
+    "[compiler] Generated code appears to call delayRender() inside a [frame, map] effect. " +
+      "This can cause update loops and black frames in Player mode. Keep camera effect pure and avoid delayRender/setState per-frame.",
+  );
+}
+
+function normalizeGeneratedCodeForSandbox(code: string): string {
+  let next = code;
+
+  // Normalize hook references for sandbox flat bindings.
+  next = next
+    .replace(/\bReact\.useState\b/g, "useState")
+    .replace(/\bReact\.useEffect\b/g, "useEffect")
+    .replace(/\bReact\.useMemo\b/g, "useMemo")
+    .replace(/\bReact\.useRef\b/g, "useRef");
+
+  // Normalize all mapbox global access to injected mapboxgl binding.
+  next = next
+    .replace(/\(window\s+as\s+any\)\.mapboxgl/g, "mapboxgl")
+    .replace(/\bwindow\s*\.\s*mapboxgl\b/g, "mapboxgl")
+    .replace(/\bglobalThis\s*\.\s*mapboxgl\b/g, "mapboxgl")
+    .replace(/\bmapboxGl\b/g, "mapboxgl");
+
+  // Remove per-frame render-handle calls that can trigger update-depth loops.
+  next = next.replace(
+    /(useEffect\s*\(\s*\(\s*\)\s*=>\s*\{)([\s\S]*?)(\}\s*,\s*\[\s*frame\s*,\s*map\s*\]\s*\))/g,
+    (_whole, prefix: string, body: string, suffix: string) => {
+      const cleanedBody = body
+        .replace(/^\s*const\s+\w+\s*=\s*delayRender\([^)]*\)\s*;?\s*$/gm, "")
+        .replace(/^\s*delayRender\([^)]*\)\s*;?\s*$/gm, "")
+        .replace(/^\s*continueRender\([^)]*\)\s*;?\s*$/gm, "")
+        .replace(
+          /^\s*map\.once\(\s*["']idle["']\s*,\s*\(\)\s*=>\s*continueRender\([^)]*\)\s*\)\s*;?\s*$/gm,
+          "",
+        );
+      return `${prefix}${cleanedBody}${suffix}`;
+    },
+  );
+
+  return next;
 }
 
 // Strip imports and extract component body from LLM-generated code
@@ -289,15 +353,17 @@ export function compileCode(code: string): CompilationResult {
     return { Component: null, error: "No code provided" };
   }
 
+  const normalizedCode = normalizeGeneratedCodeForSandbox(code);
+
   // Check cache first to preserve Component reference identity
   // This is CRITICAL for performance of external libraries like Mapbox
   // which re-initialize on every component remount.
-  const cached = compilationCache.get(code);
+  const cached = compilationCache.get(normalizedCode);
   if (cached) {
     return cached;
   }
 
-  const interpolateRangeError = findInvalidInterpolateOutputRange(code);
+  const interpolateRangeError = findInvalidInterpolateOutputRange(normalizedCode);
   if (interpolateRangeError) {
     const errorResult = { Component: null, error: interpolateRangeError };
     return errorResult;
@@ -309,11 +375,27 @@ export function compileCode(code: string): CompilationResult {
     
     if (mapboxgl) {
       mapboxgl.accessToken = mapboxToken;
+      // Compatibility shim: some generated scenes incorrectly use window.mapboxgl.
+      // Ensure window/globalThis has the same injected instance so those scenes don't crash.
+      if (typeof window !== "undefined") {
+        const win = window as Window & { mapboxgl?: typeof mapboxgl };
+        if (!win.mapboxgl) {
+          win.mapboxgl = mapboxgl;
+        }
+      }
+      if (typeof globalThis !== "undefined") {
+        const g = globalThis as typeof globalThis & { mapboxgl?: typeof mapboxgl };
+        if (!g.mapboxgl) {
+          g.mapboxgl = mapboxgl;
+        }
+      }
     } else {
       console.warn("[compiler] mapboxgl is undefined after import normalization.");
     }
 
-    const componentBody = extractComponentBody(code);
+    const componentBody = extractComponentBody(normalizedCode);
+    warnIfMapboxAntiFlickerOptionsMissing(componentBody);
+    warnIfPerFrameDelayRenderDetected(componentBody);
     const wrappedSource = `const DynamicAnimation = () => {\n${componentBody}\n};`;
 
     const transpiled = Babel.transform(wrappedSource, {
@@ -380,6 +462,11 @@ export function compileCode(code: string): CompilationResult {
       );
     };
 
+    // In editor/player sandbox, render handles are unnecessary and can cause
+    // update-depth loops when generated code calls delayRender per frame.
+    const safeDelayRender = () => 0;
+    const safeContinueRender = () => undefined;
+
     const Remotion = {
       AbsoluteFill,
       Audio,
@@ -390,8 +477,8 @@ export function compileCode(code: string): CompilationResult {
       spring,
       Sequence,
       Img,
-      delayRender,
-      continueRender,
+      delayRender: safeDelayRender,
+      continueRender: safeContinueRender,
     };
 
     // Common easing functions available as `Easing` in generated code.
@@ -541,9 +628,9 @@ export function compileCode(code: string): CompilationResult {
       spring,
       Sequence,
       Img,
-      delayRender,
-      continueRender,
-      delayRender, // useDelayRender alias
+      safeDelayRender,
+      safeContinueRender,
+      safeDelayRender, // useDelayRender alias
       useState,
       useEffect,
       useMemo,
@@ -595,7 +682,7 @@ export function compileCode(code: string): CompilationResult {
     }
 
     const result = { Component, error: null };
-    compilationCache.set(code, result);
+    compilationCache.set(normalizedCode, result);
     return result;
   } catch (error) {
     const errorMessage =

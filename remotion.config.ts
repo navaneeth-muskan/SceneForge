@@ -7,5 +7,8 @@ import { Config } from "@remotion/cli/config";
 import { webpackOverride } from "./src/remotion/webpack-override.mjs";
 
 Config.setVideoImageFormat("jpeg");
+Config.setOverwriteOutput(true);
+// Use swiftshader when rendering on Lambda (no GPU).
+Config.setChromiumOpenGlRenderer("angle");
 
 Config.overrideWebpackConfig(webpackOverride);

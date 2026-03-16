@@ -137,11 +137,13 @@ export async function POST(req: Request) {
         }
 
         case "video": {
-          // Video scenes: match against uploaded assets only
+          // Video scenes are analysis-only in this app:
+          // use uploaded footage for understanding/annotation, then render generated motion graphics instead.
           const matched = matchAsset(scene.assetHint ?? scene.description, assets, ["video"]);
           let audioDataUrl: string | undefined;
           let audioDurationSeconds: number | undefined;
           let regionAnnotationEvents: BuiltScene["regionAnnotationEvents"];
+          let code: string | undefined;
           let realDurationFrames = durationFrames;
           const shouldAnalyze = shouldAnalyzeSceneRegions(caps, scene, autoAnnotatedSceneIndexes);
           if ((caps.generateAudio && scene.narrationText) || (shouldAnalyze && matched?.url && matched.mediaType === "video")) {
@@ -166,10 +168,30 @@ export async function POST(req: Request) {
               console.error(`[scene ${scene.index}] Video narration/annotation error:`, err);
             }
           }
+          try {
+            const animationScene: SceneSpec = {
+              ...scene,
+              type: "animation",
+              description: `Create a generated motion-graphics explainer (no raw uploaded video playback). Context: ${scene.description}`,
+            };
+            const builderResult = await runSceneBuilder(animationScene, targetFps, caps);
+            code = builderResult.code ?? await generateFallbackCode(flashModel, animationScene, targetFps);
+          } catch (err) {
+            console.error(`[scene ${scene.index}] Video->animation conversion error:`, err);
+            code = await generateFallbackCode(
+              flashModel,
+              {
+                ...scene,
+                type: "animation",
+                description: `Generated visual explainer (no raw uploaded footage): ${scene.description}`,
+              },
+              targetFps,
+            );
+          }
           return {
             index: scene.index,
-            type: "video",
-            matchedAssetId: matched?.id,
+            type: "animation",
+            code,
             audioDataUrl,
             audioDurationSeconds,
             narrationText: scene.narrationText,

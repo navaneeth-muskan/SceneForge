@@ -36,9 +36,6 @@ yarn-error.log*
 next-env.d.ts
 out/
 .env
-.env.local
-.env.*
-.env.example
 build
 
 digital-scanning-service_account.json
@@ -49,3 +46,4 @@ digital-scanning-service_account.json
 .terraform/
 .terraform.lock.hcl
 infra/terraform/terraform.tfvars
+mapbox-example

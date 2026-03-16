@@ -86,7 +86,7 @@ export function createStoryPlannerAgent(
   return new LlmAgent({
     name: "story_planner",
     model: GEMINI_MODELS.pro,
-    instruction: `You are a creative video story director specialising in short-to-medium-form video production (up to 2 minutes).
+    instruction: `You are a creative video story director specialising in short-to-long-form video production (up to 400 seconds).
 
 Your job: receive a creative brief → decompose it into a sequence of vivid, engaging scenes that form a compelling story.
 
@@ -99,19 +99,20 @@ ${assetList}
 ## Scene Type Rules
 - **"animation"** — an animated Remotion React scene (kinetic text, data viz, lower thirds, particle effects, gradient backgrounds, motion graphics). PREFER this for visual storytelling.
 - **"title"** — a simple full-screen text card (use only for very brief 1-2s text moments, not as a substitute for animation)
-- **"video"** — uses one of the uploaded video assets (ONLY if a relevant video exists above)
+- **"video"** — analysis-only source type. Use uploaded video assets for understanding, narration grounding, and region/event extraction, but do NOT place raw uploaded video footage in the final rendered timeline.
 - **"image"** — a still image scene. ${capabilities.generateImages ? "To use an uploaded asset AS-IS, provide its ID/name in `assetHint`. To GENERATE a new image based closely on an uploaded asset, provide both `assetHint` AND set `generateFromAsset=true`. If no asset matches or you want a fresh image without a reference, omit the assetHint." : "ONLY use if a matching image asset is uploaded above."}
 ${capabilities.generateImages ? "Image scenes must remain clean base visuals: do not ask for baked arrows, callout boxes, labels, or annotation marks inside the generated pixels; those guidance elements are added later via Remotion overlays." : ""}
 - **"audio"** — ${capabilities.generateAudio ? "a narration-primary scene where speech IS the main event (animated visual backing is auto-generated). Use this ONLY when narration is the focus. For visual scenes (animation/image/video), add narrationText directly on those scenes instead." : "DISABLED — do not plan audio scenes."}
 - **"transition"** — a brief visual bridge (1-2 seconds) between major section changes
 
 ## Creative Mandate
-1. Plan **4-12 scenes** for a rich story. Each scene: 2-12 seconds (durationSeconds). Aim for total duration matching the brief — short promos 15-30s, explainers 45-90s, full stories up to 120s.
+1. Plan **4-20 scenes** for a rich story. Each scene: 2-60 seconds (durationSeconds). Prefer longer outputs by default: target around 200-300 seconds unless the user explicitly asks for a short cut. Never exceed 400 seconds total.
 2. **When no assets are uploaded, be FULLY creative** — use animation and image scenes to bring the story to life. Never produce a boring story.
 3. **Mix scene types with rhythm**: use fast cuts (2-3s transitions) and slow beats (6-12s hero moments).
 4. Open with a HIGH-IMPACT scene (animation or generated image). End memorably.
 5. ${capabilities.generateImages ? "Use 'image' type scenes liberally for establishing shots, backgrounds, environments, characters, products." : ""}
 6. ${capabilities.generateAudio ? "Add `narrationText` to EVERY scene (animation, image, video, title) so narration plays continuously throughout the video with NO silent gaps. Write narrationText as a full engaging sentence explaining or describing what is happening in that specific scene — not a summary, but a real spoken line a presenter would say. Pick one voice for the whole story and set it on every scene's `voice` field. Valid voices: aoede (warm female), charon (deep male), kore (calm female), puck (upbeat male), fenrir (strong male), leda (bright female), zephyr (airy female), orus (rich male). Voice names are lowercase. The standalone 'audio' scene type is optional — prefer embedding narrationText on animation/image scenes instead. Critical timing rule: each scene's narration must fully finish before the next scene starts and should leave roughly 1 second of breathing room after the spoken line; if a line needs more time, increase that scene duration rather than cutting or spilling narration." : ""}
+11. For uploaded video assets: treat them as analysis/reference input only. Convert insights into generated visuals (animation/image/motion graphics). Do not plan scenes that directly show the raw uploaded video as final output.
 7. Populate **skillHints** per scene with tags the builder should use. Available tags: charts, typography, social-media, messaging, 3d, transitions, sequencing, spring-physics, ai-ui-cinematic, image-generation, mathematics, ecommerce, marketing, portfolio, browser-mockup, bento-grid, science, kids-story, timeline-path, chemistry-physics, flowchart-nodes, themed-backgrounds${capabilities.useComponents ? ", components" : ""}${capabilities.useMaps ? ", maps" : ""}${capabilities.useCharts ? ", charts" : ""}${capabilities.useTerminal ? ", terminal" : ""}${capabilities.useBrand ? ", brand" : ""}${capabilities.useTravel ? ", travel" : ""}${capabilities.useTutorial ? ", tutorial" : ""}
 8. For animation scenes, suggest vivid descriptions: colours, layout, motion style, mood — not just "animation about X".
 9. When the brief involves AI products, software demos, agent workflows, prompt-to-result storytelling, futuristic interfaces, or cinematic UI reveals, include "ai-ui-cinematic" in skillHints and describe the scene with specific interface motifs such as prompt bars, floating panels, file stacks, cursors, tooltips, waveform feedback, glow lighting, and staged reveal choreography.
@@ -251,20 +252,22 @@ ${skillHints.length > 0 ? `- Skill hints: ${skillHints.join(", ")}` : ""}
 14. For cursor/callout/UI accent elements, inline SVG and icon-like vector shapes are encouraged. If relevant assets already exist in \`public/\`, reuse them instead of rebuilding heavier structures.
 15. If you need a brand-new image asset mid-scene, use \`generate_image\`. If you need to transform an existing image, use the \`edit_image\` tool/agent. To enforce character or stylistic consistency across generated images, you MUST pass a \`referenceImageUrl\` (e.g., an uploaded asset or a previously generated image URL).
 16. If skill hints include \`travel\` or \`maps\` and the scene asks for fly-to/zoom/route/city-to-city movement, use a REAL map implementation:
-        - Use \`delayRender()\` and \`continueRender()\` to ensure life-cycle stability.
+        - Use \`delayRender()\` and \`continueRender()\` ONLY in the map init flow (never per-frame).
         - Initialize \`new mapboxgl.Map(...)\` in a primary \`useEffect\` (dependencies MUST be strictly \`[]\`).
+        - Map constructor MUST include \`interactive: false\` and \`fadeDuration: 0\` to avoid frame-to-frame tile ghosting/flicker in Remotion renders.
+        - Prefer stable map styles for video rendering: avoid terrain and heavy POI/label transition effects that animate outside frame control.
         - Use a second \`useEffect\` (dependencies MUST be strictly \`[frame, map]\`) to drive camera movement.
         - Inside the camera effect:
-            1. Call \`const handle = delayRender('camera-move')\`.
+            1. NEVER call \`delayRender()\`, \`continueRender()\`, or \`setState()\` here.
             2. Update camera via \`map.jumpTo\` or \`map.setFreeCameraOptions\` keyed to \`frame / fps\`.
-            3. **CRITICAL**: Wait for the map to finish painting using \`map.once('idle', () => continueRender(handle))\`. This ensures Remotion captures a fully rendered frame.
-            4. Do NOT trigger React state updates (\`setState\`) inside the camera effect.
+            3. Keep it pure and idempotent so pause/resume/scrub does not trigger render loops.
 14. NEVER hardcode Mapbox access tokens (no literal pk.* strings). Do NOT declare a MAPBOX_TOKEN const or set \`mapboxgl.accessToken\` in generated scene code. Tokens are injected by the host app from .env (REMOTION_MAPBOX_TOKEN). Use the injected \`mapboxgl\` object directly — \`mapboxgl.accessToken\` is already set before your code runs.
-15. **CRITICAL: STRICT useEffect RULES:** 
+15. NEVER access Mapbox through \`window.mapboxgl\` or any \`window.*\` alias. Always use the injected \`mapboxgl\` binding directly (\`new mapboxgl.Map(...)\`).
+16. **CRITICAL: STRICT useEffect RULES:** 
     - NEVER omit the dependency array in a \`useEffect\`. Omitting it causes infinite loops that will crash the editor immediately.
     - NEVER use dynamic lengths or \`.filter(Boolean)\` in dependency arrays (e.g., \`[map, flag ? true : false]\`). React requires a constant array size.
     - ALWAYS provide a static, hardcoded array like \`[]\` or \`[frame, map]\`.
-16. ${capabilities.useComponents ? `
+17. ${capabilities.useComponents ? `
 ## Pre-Built Motion Component Patterns
 Inline these battle-tested patterns directly in your animation code:
 
@@ -523,6 +526,10 @@ You receive a Remotion animation component that may contain bugs. Fix every issu
 7. **Syntax errors** — fix missing semicolons at statement boundaries, stray tokens, invalid property names, or any other TypeScript/JSX parse errors.
 8. **Remotion API** — if \`useVideoConfig()\` is used, ensure \`durationInFrames\` and \`fps\` are destructured from it (scene fps = ${fps}). Clamp all interpolations with \`{ extrapolateLeft: "clamp", extrapolateRight: "clamp" }\`.
 9. **interpolate() output ranges** — Remotion \`interpolate()\` output ranges must contain only numbers. Never write \`interpolate(..., ["0%", "100%"] )\`, colors, transform strings, or CSS strings in the output range. Instead interpolate numbers and embed them into template strings, or use conditionals / helper functions for non-numeric values.
+10. **Mapbox binding safety** — NEVER access Mapbox through \`window.mapboxgl\`, \`globalThis.mapboxgl\`, or \`(window as any).mapboxgl\`. Always use the injected \`mapboxgl\` variable directly.
+11. **React hooks in sandbox** — NEVER use \`React.useState/useEffect/useMemo/useRef\`; use flat bindings \`useState/useEffect/useMemo/useRef\`.
+12. **Map camera lifecycle** — in any \`useEffect(..., [frame, map])\` camera driver, NEVER call \`delayRender()\`, \`continueRender()\`, \`setState()\`, or \`map.once('idle', ...)\`. Keep this effect pure and idempotent (camera/source updates only).
+13. **delayRender usage** — if needed for map scenes, use \`delayRender\` only once in map-init flow (\`useEffect(..., [])\`) and call \`continueRender\` only from load/init completion.
 
 ## What NOT to change
 - Do not redesign the animation — preserve the visual intent and all working logic.
@@ -578,6 +585,74 @@ export async function runCodeFixer(code: string, fps: number): Promise<string> {
 
   // If the agent returned nothing useful, fall back to the original
   return fixed?.trim() || code;
+}
+
+function isLikelyMapSceneCode(code: string): boolean {
+  return (
+    /\bmapboxgl\.Map\s*\(/.test(code) ||
+    /\bwindow\s*\.\s*mapboxgl\b/.test(code) ||
+    /\(window\s+as\s+any\)\.mapboxgl/.test(code) ||
+    /\bglobalThis\s*\.\s*mapboxgl\b/.test(code)
+  );
+}
+
+function sanitizeGeneratedSceneCode(code: string): string {
+  let next = code;
+
+  // Normalize hook access for sandboxed execution.
+  next = next
+    .replace(/\bReact\.useState\b/g, "useState")
+    .replace(/\bReact\.useEffect\b/g, "useEffect")
+    .replace(/\bReact\.useMemo\b/g, "useMemo")
+    .replace(/\bReact\.useRef\b/g, "useRef");
+
+  // Normalize all window/global mapbox access to injected mapboxgl binding.
+  next = next
+    .replace(/\(window\s+as\s+any\)\.mapboxgl/g, "mapboxgl")
+    .replace(/\bwindow\s*\.\s*mapboxgl\b/g, "mapboxgl")
+    .replace(/\bglobalThis\s*\.\s*mapboxgl\b/g, "mapboxgl")
+    .replace(/\bmapboxGl\b/g, "mapboxgl");
+
+  // Remove per-frame render-handle usage that can trigger Player update loops.
+  next = next.replace(
+    /(useEffect\s*\(\s*\(\s*\)\s*=>\s*\{)([\s\S]*?)(\}\s*,\s*\[\s*frame\s*,\s*map\s*\]\s*\))/g,
+    (_whole, prefix: string, body: string, suffix: string) => {
+      const cleanedBody = body
+        .replace(/^\s*const\s+\w+\s*=\s*delayRender\([^)]*\)\s*;?\s*$/gm, "")
+        .replace(/^\s*delayRender\([^)]*\)\s*;?\s*$/gm, "")
+        .replace(/^\s*continueRender\([^)]*\)\s*;?\s*$/gm, "")
+        .replace(
+          /^\s*map\.once\(\s*["']idle["']\s*,\s*\(\)\s*=>\s*continueRender\([^)]*\)\s*\)\s*;?\s*$/gm,
+          "",
+        );
+      return `${prefix}${cleanedBody}${suffix}`;
+    },
+  );
+
+  return next.trim();
+}
+
+function hasObviousSyntaxRisk(code: string): boolean {
+  const bracesOpen = (code.match(/\{/g) ?? []).length;
+  const bracesClose = (code.match(/\}/g) ?? []).length;
+  const parensOpen = (code.match(/\(/g) ?? []).length;
+  const parensClose = (code.match(/\)/g) ?? []).length;
+
+  return (
+    bracesOpen !== bracesClose ||
+    parensOpen !== parensClose ||
+    /```/.test(code) ||
+    /^\s*import\s+/m.test(code)
+  );
+}
+
+function shouldRunCodeFixer(scene: SceneSpec, code: string): boolean {
+  if (!code.trim()) return false;
+  const isMapScene = scene.type === "animation" && isLikelyMapSceneCode(code);
+  if (!isMapScene) return true;
+
+  // For map scenes, skip fixer unless there are obvious structural issues.
+  return hasObviousSyntaxRisk(code);
 }
 
 // ---------------------------------------------------------------------------
@@ -744,11 +819,20 @@ export async function runSceneBuilder(
     }
   }
 
-  // Pass cleaned code through the fixer agent to catch remaining issues
-  // (trailing prose, non-ASCII identifiers, bad export shape, syntax errors).
-  const fixedCode = cleanCode ? await runCodeFixer(cleanCode, fps) : undefined;
+  const sanitizedCode = cleanCode ? sanitizeGeneratedSceneCode(cleanCode) : undefined;
 
-  return { code: fixedCode };
+  // Pass code through fixer only when needed. For map scenes with valid structure,
+  // skip fixer to avoid reintroducing unstable lifecycle patterns.
+  const maybeFixedCode =
+    sanitizedCode && shouldRunCodeFixer(scene, sanitizedCode)
+      ? await runCodeFixer(sanitizedCode, fps)
+      : sanitizedCode;
+
+  const finalCode = maybeFixedCode
+    ? sanitizeGeneratedSceneCode(maybeFixedCode)
+    : undefined;
+
+  return { code: finalCode };
 }
 
 // ---------------------------------------------------------------------------
@@ -826,7 +910,7 @@ function parsePlanFromText(text: string, prompt: string): StoryPlan {
     }
   }
 
-  // Hard fallback: 3-scene default plan
+  // Hard fallback: long-form default plan aligned with planner targets.
   return {
     title: prompt.slice(0, 60),
     description: prompt,
@@ -835,24 +919,42 @@ function parsePlanFromText(text: string, prompt: string): StoryPlan {
         index: 0,
         type: "animation",
         description: `Opening: ${prompt}`,
-        durationSeconds: 4,
+        durationSeconds: 36,
       },
       {
         index: 1,
         type: "title",
         description: "Main message",
-        durationSeconds: 3,
+        durationSeconds: 24,
         titleText: prompt.slice(0, 80),
         titlePreset: "modern-title",
       },
       {
         index: 2,
+        type: "image",
+        description: `Context scene for: ${prompt}`,
+        durationSeconds: 36,
+      },
+      {
+        index: 3,
+        type: "animation",
+        description: `Detailed walkthrough for: ${prompt}`,
+        durationSeconds: 42,
+      },
+      {
+        index: 4,
+        type: "image",
+        description: `Supporting visual chapter for: ${prompt}`,
+        durationSeconds: 30,
+      },
+      {
+        index: 5,
         type: "animation",
         description: `Closing animation for: ${prompt}`,
-        durationSeconds: 3,
+        durationSeconds: 42,
       },
     ],
-    totalDurationSeconds: 10,
+    totalDurationSeconds: 210,
     skillHints: [],
   };
 }
