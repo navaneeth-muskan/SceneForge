@@ -6,10 +6,6 @@ import { AnimationPlayer } from "@/components/AnimationPlayer";
 import { PageLayout } from "@/components/PageLayout";
 import { Button } from "@/components/ui/button";
 import { TimelineEditor } from "@/components/Editor/TimelineEditor";
-import { DownloadButton } from "@/components/AnimationPlayer/RenderControls/DownloadButton";
-import { ErrorComp } from "@/components/AnimationPlayer/RenderControls/Error";
-import { ProgressBar } from "@/components/AnimationPlayer/RenderControls/ProgressBar";
-import { useRendering } from "@/helpers/use-rendering";
 import { useAnimationState } from "@/hooks/useAnimationState";
 import { removeBackgroundFromImage } from "@/helpers/remove-background";
 import { ANIMATED_LAYER_SOURCE } from "./animated-layer-code";
@@ -23,6 +19,7 @@ import {
   Bot,
   Check,
   ChevronDown,
+  ExternalLink,
   FileText,
   Film,
   Folder,
@@ -36,7 +33,6 @@ import {
   Play,
   Redo2,
   RotateCw,
-  Save,
   Scan,
   Scissors,
   Search,
@@ -248,6 +244,8 @@ const defaultTextShadow: TextShadowOptions = {
   offsetX: 0,
   offsetY: 2,
 };
+
+const EDITOR_PREVIEW_STORAGE_KEY = "videoai:editor-preview-payload";
 
 const TEXT_PRESETS: { id: string; label: string; description: string; text: string; style: TextStyleOptions; transform: VisualTransform }[] = [
   { id: "modern-title", label: "Modern Title", description: "Sleek & Minimalist", text: "Modern Title", style: { fontFamily: "Inter", fontWeight: "600", fontSize: 48, letterSpacing: 0, textAlign: "center", color: "#1e293b" }, transform: { x: 10, y: 40, width: 80, height: 20, rotation: 0 } },
@@ -790,19 +788,6 @@ export const MyAnimation = () => {
     setCode,
     compileCode,
   } = useAnimationState(initialExample?.code ?? "");
-
-  const {
-    renderMedia: renderEditorMedia,
-    state: renderEditorState,
-    undo: undoEditorRender,
-  } = useRendering(
-    {
-      code,
-      durationInFrames,
-      fps,
-    },
-    "renderServer",
-  );
 
   const playerRef = useRef<PlayerRef>(null as unknown as PlayerRef);
   const audioElsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
@@ -3338,6 +3323,55 @@ export const SceneComp = () => {
     [],
   );
 
+  const handleOpenPreviewTab = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    const filteredVisuals = annotationsEnabled
+      ? timelineVisualItems
+      : timelineVisualItems.filter((item) => item.sourceKind !== "animCode");
+    const codeWithCaptions = buildMultiLayerCompositionCode(filteredVisuals, timelineTextItems);
+    const codeWithoutCaptions = buildMultiLayerCompositionCode(filteredVisuals, []);
+
+    const payload = {
+      code,
+      codeWithCaptions,
+      codeWithoutCaptions,
+      fps,
+      durationInFrames,
+      width: currentAspect.width,
+      height: currentAspect.height,
+      aspect: currentAspect.value,
+      audioTracks: timelineAudioItems.map((track) => ({
+        id: track.id,
+        name: track.name,
+        url: track.url,
+        start: track.start,
+        end: track.end,
+      })),
+      updatedAt: Date.now(),
+    };
+
+    try {
+      window.localStorage.setItem(EDITOR_PREVIEW_STORAGE_KEY, JSON.stringify(payload));
+      const previewTab = window.open("/editor/preview", "videoai-editor-preview");
+      previewTab?.focus();
+    } catch (error) {
+      console.error("Failed to open preview tab", error);
+    }
+  }, [
+    annotationsEnabled,
+    buildMultiLayerCompositionCode,
+    code,
+    currentAspect.height,
+    currentAspect.value,
+    currentAspect.width,
+    durationInFrames,
+    fps,
+    timelineAudioItems,
+    timelineTextItems,
+    timelineVisualItems,
+  ]);
+
   const handleResizeStart: React.PointerEventHandler<HTMLDivElement> =
     useCallback((e) => {
       e.preventDefault();
@@ -5697,43 +5731,9 @@ export const SceneComp = () => {
               </div>
               <div className="flex items-center gap-3">
                 <button className="text-slate-400 hover:text-slate-200">
-                  <Save className="w-4 h-4" />
-                </button>
-                <button className="text-slate-400 hover:text-slate-200">
                   <Bell className="w-4 h-4" />
                 </button>
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    className="bg-[#1e293b] hover:bg-[#2a374c] text-slate-200 border border-[#2a374c] h-8 px-4 text-xs font-medium"
-                    onClick={renderEditorMedia}
-                    disabled={
-                      !code ||
-                      renderEditorState.status === "invoking" ||
-                      renderEditorState.status === "rendering"
-                    }
-                  >
-                    {renderEditorState.status === "invoking"
-                      ? "Starting render..."
-                      : renderEditorState.status === "rendering"
-                        ? "Rendering..."
-                        : "Render Video"}
-                  </Button>
-                  {renderEditorState.status === "rendering" && (
-                    <div className="w-32">
-                      <ProgressBar progress={renderEditorState.progress} />
-                    </div>
-                  )}
-                  {renderEditorState.status === "done" && (
-                    <DownloadButton
-                      state={renderEditorState}
-                      undo={undoEditorRender}
-                    />
-                  )}
-                  {renderEditorState.status === "error" && (
-                    <ErrorComp message={renderEditorState.error.message} />
-                  )}
-                </div>
+                {/* Intentionally removed top-right Save + Render Video controls per editor UI simplification request. */}
               </div>
             </div>
 
@@ -6038,6 +6038,14 @@ export const SceneComp = () => {
                         </button>
                       );
                     })()}
+                    <button
+                      className="flex items-center gap-2 px-3 py-1.5 rounded text-xs border border-[#1e293b] hover:bg-[#1e293b]"
+                      onClick={handleOpenPreviewTab}
+                      title="Open player-only preview in a new tab"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5 text-slate-300" />
+                      <span>Preview</span>
+                    </button>
                     <div className="relative" ref={aspectMenuRef}>
                       <button
                         className="flex items-center gap-2 px-3 py-1.5 rounded text-xs border border-[#1e293b] hover:bg-[#1e293b]"

@@ -338,11 +338,53 @@ export function compileCode(code: string): CompilationResult {
       return { Component: null, error: "Transpilation failed" };
     }
 
+    const safeInterpolate = (
+      value: number,
+      inputRange: number[],
+      outputRange: number[],
+      options?: Parameters<typeof interpolate>[3],
+    ) => {
+      if (!Array.isArray(inputRange) || !Array.isArray(outputRange) || inputRange.length !== outputRange.length) {
+        return interpolate(value, inputRange, outputRange, options);
+      }
+      if (inputRange.length < 2) {
+        return interpolate(value, inputRange, outputRange, options);
+      }
+
+      let isStrictlyIncreasing = true;
+      for (let i = 1; i < inputRange.length; i++) {
+        if (!(inputRange[i]! > inputRange[i - 1]!)) {
+          isStrictlyIncreasing = false;
+          break;
+        }
+      }
+      if (isStrictlyIncreasing) {
+        return interpolate(value, inputRange, outputRange, options);
+      }
+
+      const pairs = inputRange.map((x, idx) => ({ x, y: outputRange[idx]! }));
+      pairs.sort((a, b) => a.x - b.x);
+
+      // Ensure strict monotonicity even if duplicate values are generated.
+      for (let i = 1; i < pairs.length; i++) {
+        if (pairs[i]!.x <= pairs[i - 1]!.x) {
+          pairs[i]!.x = pairs[i - 1]!.x + 1e-6;
+        }
+      }
+
+      return interpolate(
+        value,
+        pairs.map((p) => p.x),
+        pairs.map((p) => p.y),
+        options,
+      );
+    };
+
     const Remotion = {
       AbsoluteFill,
       Audio,
       Video,
-      interpolate,
+      interpolate: safeInterpolate,
       useCurrentFrame,
       useVideoConfig,
       spring,
@@ -407,7 +449,7 @@ export function compileCode(code: string): CompilationResult {
       ...React,
       useCurrentFrame,
       useVideoConfig,
-      interpolate,
+      interpolate: safeInterpolate,
       spring,
       AbsoluteFill,
       Audio,
@@ -472,6 +514,8 @@ export function compileCode(code: string): CompilationResult {
       "clockWipe",
       // Easing utility (mirrors React Native / community convention)
       "Easing",
+      // Common LLM helper used in generated text-highlighting snippets.
+      "isKeyword",
       // Safety no-op: LLMs sometimes emit registerRoot(SceneComp) at the end of generated
       // code. Providing it as a no-op prevents ReferenceError in the browser sandbox.
       "registerRoot",
@@ -491,7 +535,7 @@ export function compileCode(code: string): CompilationResult {
       AbsoluteFill,
       Audio,
       Video,
-      interpolate,
+      safeInterpolate,
       useCurrentFrame,
       useVideoConfig,
       spring,
@@ -531,6 +575,11 @@ export function compileCode(code: string): CompilationResult {
       clockWipe,
       // Easing utility
       Easing,
+      // Fallback helper for generated snippets that call isKeyword(word, keywords).
+      (word: unknown, keywords: unknown) => {
+        if (typeof word !== "string" || !Array.isArray(keywords)) return false;
+        return keywords.some((entry) => typeof entry === "string" && entry.toLowerCase() === word.toLowerCase());
+      },
       // no-op safety net
       () => {},
       // Optional mapbox instance
