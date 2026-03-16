@@ -86,7 +86,7 @@ export function createStoryPlannerAgent(
   return new LlmAgent({
     name: "story_planner",
     model: GEMINI_MODELS.pro,
-    instruction: `You are a creative video story director specialising in short-to-medium-form video production (up to 2 minutes).
+    instruction: `You are a creative video story director specialising in short-to-long-form video production (up to 400 seconds).
 
 Your job: receive a creative brief → decompose it into a sequence of vivid, engaging scenes that form a compelling story.
 
@@ -99,19 +99,20 @@ ${assetList}
 ## Scene Type Rules
 - **"animation"** — an animated Remotion React scene (kinetic text, data viz, lower thirds, particle effects, gradient backgrounds, motion graphics). PREFER this for visual storytelling.
 - **"title"** — a simple full-screen text card (use only for very brief 1-2s text moments, not as a substitute for animation)
-- **"video"** — uses one of the uploaded video assets (ONLY if a relevant video exists above)
+- **"video"** — analysis-only source type. Use uploaded video assets for understanding, narration grounding, and region/event extraction, but do NOT place raw uploaded video footage in the final rendered timeline.
 - **"image"** — a still image scene. ${capabilities.generateImages ? "To use an uploaded asset AS-IS, provide its ID/name in `assetHint`. To GENERATE a new image based closely on an uploaded asset, provide both `assetHint` AND set `generateFromAsset=true`. If no asset matches or you want a fresh image without a reference, omit the assetHint." : "ONLY use if a matching image asset is uploaded above."}
 ${capabilities.generateImages ? "Image scenes must remain clean base visuals: do not ask for baked arrows, callout boxes, labels, or annotation marks inside the generated pixels; those guidance elements are added later via Remotion overlays." : ""}
 - **"audio"** — ${capabilities.generateAudio ? "a narration-primary scene where speech IS the main event (animated visual backing is auto-generated). Use this ONLY when narration is the focus. For visual scenes (animation/image/video), add narrationText directly on those scenes instead." : "DISABLED — do not plan audio scenes."}
 - **"transition"** — a brief visual bridge (1-2 seconds) between major section changes
 
 ## Creative Mandate
-1. Plan **4-12 scenes** for a rich story. Each scene: 2-12 seconds (durationSeconds). Aim for total duration matching the brief — short promos 15-30s, explainers 45-90s, full stories up to 120s.
+1. Plan **4-20 scenes** for a rich story. Each scene: 2-60 seconds (durationSeconds). Prefer longer outputs by default: target around 200-300 seconds unless the user explicitly asks for a short cut. Never exceed 400 seconds total.
 2. **When no assets are uploaded, be FULLY creative** — use animation and image scenes to bring the story to life. Never produce a boring story.
 3. **Mix scene types with rhythm**: use fast cuts (2-3s transitions) and slow beats (6-12s hero moments).
 4. Open with a HIGH-IMPACT scene (animation or generated image). End memorably.
 5. ${capabilities.generateImages ? "Use 'image' type scenes liberally for establishing shots, backgrounds, environments, characters, products." : ""}
 6. ${capabilities.generateAudio ? "Add `narrationText` to EVERY scene (animation, image, video, title) so narration plays continuously throughout the video with NO silent gaps. Write narrationText as a full engaging sentence explaining or describing what is happening in that specific scene — not a summary, but a real spoken line a presenter would say. Pick one voice for the whole story and set it on every scene's `voice` field. Valid voices: aoede (warm female), charon (deep male), kore (calm female), puck (upbeat male), fenrir (strong male), leda (bright female), zephyr (airy female), orus (rich male). Voice names are lowercase. The standalone 'audio' scene type is optional — prefer embedding narrationText on animation/image scenes instead. Critical timing rule: each scene's narration must fully finish before the next scene starts and should leave roughly 1 second of breathing room after the spoken line; if a line needs more time, increase that scene duration rather than cutting or spilling narration." : ""}
+11. For uploaded video assets: treat them as analysis/reference input only. Convert insights into generated visuals (animation/image/motion graphics). Do not plan scenes that directly show the raw uploaded video as final output.
 7. Populate **skillHints** per scene with tags the builder should use. Available tags: charts, typography, social-media, messaging, 3d, transitions, sequencing, spring-physics, ai-ui-cinematic, image-generation, mathematics, ecommerce, marketing, portfolio, browser-mockup, bento-grid, science, kids-story, timeline-path, chemistry-physics, flowchart-nodes, themed-backgrounds${capabilities.useComponents ? ", components" : ""}${capabilities.useMaps ? ", maps" : ""}${capabilities.useCharts ? ", charts" : ""}${capabilities.useTerminal ? ", terminal" : ""}${capabilities.useBrand ? ", brand" : ""}${capabilities.useTravel ? ", travel" : ""}${capabilities.useTutorial ? ", tutorial" : ""}
 8. For animation scenes, suggest vivid descriptions: colours, layout, motion style, mood — not just "animation about X".
 9. When the brief involves AI products, software demos, agent workflows, prompt-to-result storytelling, futuristic interfaces, or cinematic UI reveals, include "ai-ui-cinematic" in skillHints and describe the scene with specific interface motifs such as prompt bars, floating panels, file stacks, cursors, tooltips, waveform feedback, glow lighting, and staged reveal choreography.
@@ -826,7 +827,7 @@ function parsePlanFromText(text: string, prompt: string): StoryPlan {
     }
   }
 
-  // Hard fallback: 3-scene default plan
+  // Hard fallback: long-form default plan aligned with planner targets.
   return {
     title: prompt.slice(0, 60),
     description: prompt,
@@ -835,24 +836,42 @@ function parsePlanFromText(text: string, prompt: string): StoryPlan {
         index: 0,
         type: "animation",
         description: `Opening: ${prompt}`,
-        durationSeconds: 4,
+        durationSeconds: 36,
       },
       {
         index: 1,
         type: "title",
         description: "Main message",
-        durationSeconds: 3,
+        durationSeconds: 24,
         titleText: prompt.slice(0, 80),
         titlePreset: "modern-title",
       },
       {
         index: 2,
+        type: "image",
+        description: `Context scene for: ${prompt}`,
+        durationSeconds: 36,
+      },
+      {
+        index: 3,
+        type: "animation",
+        description: `Detailed walkthrough for: ${prompt}`,
+        durationSeconds: 42,
+      },
+      {
+        index: 4,
+        type: "image",
+        description: `Supporting visual chapter for: ${prompt}`,
+        durationSeconds: 30,
+      },
+      {
+        index: 5,
         type: "animation",
         description: `Closing animation for: ${prompt}`,
-        durationSeconds: 3,
+        durationSeconds: 42,
       },
     ],
-    totalDurationSeconds: 10,
+    totalDurationSeconds: 210,
     skillHints: [],
   };
 }
